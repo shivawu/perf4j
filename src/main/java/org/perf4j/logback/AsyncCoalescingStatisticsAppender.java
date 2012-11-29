@@ -18,6 +18,7 @@ package org.perf4j.logback;
 import java.io.Flushable;
 import java.util.Iterator;
 import org.perf4j.GroupedTimingStatistics;
+import org.perf4j.MergeableGroupedTimingStatistics;
 import org.perf4j.StopWatch;
 import org.perf4j.helpers.GenericAsyncCoalescingStatisticsAppender;
 import ch.qos.logback.classic.Level;
@@ -64,9 +65,24 @@ public class AsyncCoalescingStatisticsAppender extends AppenderBase<LoggingEvent
     private final AppenderAttachableImpl<LoggingEvent> downstreamAppenders = new AppenderAttachableImpl<LoggingEvent>();
 
     /**
-     *
+     * Total statistics object
      */
-    private GroupedTimingStatistics totalStatistics = new GroupedTimingStatistics();
+    private MergeableGroupedTimingStatistics totalStatistics = new MergeableGroupedTimingStatistics();
+
+    /**
+     * The lock for the total statistics object
+     */
+    private Object totalStatisticsLock = new Object();
+
+    /**
+     * Whether to print total statistics
+     */
+    private boolean printSummary = false;
+
+    /**
+     * Whether to ignore empty statistics
+     */
+    private boolean ignoreEmptyStatistics = false;
 
     // --- options ---
     /**
@@ -202,6 +218,44 @@ public class AsyncCoalescingStatisticsAppender extends AppenderBase<LoggingEvent
         baseImplementation.setStopWatchParserClassName(stopWatchParserClassName);
     }
 
+    /**
+     * The <b>PrintSummary</b> option decides whether to print a summary
+     * when the appender stops
+     *
+     * @return The PrintSummary option.
+     */
+    public boolean isPrintSummary() {
+        return printSummary;
+    }
+
+    /**
+     * Sets the value of the <b>PrintSummary</b> option.
+     *
+     * @param printSummary The new PrintSummary option.
+     */
+    public void setPrintSummary(boolean printSummary) {
+        this.printSummary = printSummary;
+    }
+
+    /**
+     * The <b>IgnoreEmptyStatistics</b> decides whether to ignore one statistics object
+     * when it does not contain any statistics records
+     *
+     * @return The IgnoreEmptyStatistics option.
+     */
+    public boolean isIgnoreEmptyStatistics() {
+        return ignoreEmptyStatistics;
+    }
+
+    /**
+     * Sets the value of the <b>IgnoreEmptyStatistics</b> option.
+     *
+     * @param ignoreEmptyStatistics The new IgnoreEmptyStatistics option.
+     */
+    public void setIgnoreEmptyStatistics(boolean ignoreEmptyStatistics) {
+        this.ignoreEmptyStatistics = ignoreEmptyStatistics;
+    }
+
     public void setName(String name) {
         super.setName(name);
         baseImplementation.setName(name);
@@ -214,9 +268,11 @@ public class AsyncCoalescingStatisticsAppender extends AppenderBase<LoggingEvent
             public void handle(GroupedTimingStatistics statistics) {
                 // Ignore empty statistics
                 // Added by Shiva Wu
-                if (statistics.getStatisticsByTag().size() == 0) 
+                if (statistics.getStatisticsByTag().size() == 0)
                     return;
-                totalStatistics = totalStatistics.merge(statistics);
+                synchronized (totalStatisticsLock) {
+                    totalStatistics = totalStatistics.merge(statistics);
+                }
 
                 LoggingEvent coalescedLoggingEvent =
                         new LoggingEvent(Logger.class.getName(),
@@ -303,18 +359,19 @@ public class AsyncCoalescingStatisticsAppender extends AppenderBase<LoggingEvent
     public void stop() {
         baseImplementation.stop();
 
-        //Output total statistics
-        LoggingEvent coalescedLoggingEvent =
-        new LoggingEvent(Logger.class.getName(),
-                         getLoggerContext().getLogger(StopWatch.DEFAULT_LOGGER_NAME),
-                         downstreamLogLevel,
-                         "{}",
-                         null,
-                         new Object[] { totalStatistics });
-
         //close the downstream appenders
         synchronized (downstreamAppenders) {
-            downstreamAppenders.appendLoopOnAppenders(coalescedLoggingEvent);
+            //Output total statistics
+            if (printSummary && getLoggerContext() != null) {
+                LoggingEvent coalescedLoggingEvent = new LoggingEvent(Logger.class.getName(),
+                        getLoggerContext().getLogger(StopWatch.DEFAULT_LOGGER_NAME),
+                        downstreamLogLevel,
+                        "{}",
+                        null,
+                        new Object[] { totalStatistics });
+
+                downstreamAppenders.appendLoopOnAppenders(coalescedLoggingEvent);
+            }
 
             //first FLUSH any flushable downstream appenders (fix for PERFFORJ-22). Note we CAN NOT just flush and
             //close in one loop because this breaks in the case of a "diamond" relationship between appenders, where,
@@ -357,6 +414,4 @@ public class AsyncCoalescingStatisticsAppender extends AppenderBase<LoggingEvent
     LoggerContext getLoggerContext() {
         return (LoggerContext)getContext();
     }
-
-
 }

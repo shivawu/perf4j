@@ -23,7 +23,7 @@ import java.io.Serializable;
  *
  * @author Alex Devine
  */
-public class TimingStatistics implements Serializable, Cloneable, Mergable<TimingStatistics> {
+public class TimingStatistics implements Serializable, Cloneable, Combiner<TimingStatistics> {
     private static final long serialVersionUID = 2854670870560621993L;
     private double mean;
     private double runningQ; //for keeping running standard deviation
