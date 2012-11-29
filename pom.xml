@@ -3,7 +3,7 @@
 
     <groupId>org.perf4j</groupId>
     <artifactId>perf4j</artifactId>
-    <version>0.9.17-SNAPSHOT</version>
+    <version>0.9.17-1</version>
     <packaging>jar</packaging>
 
     <name>Perf4J</name>
@@ -687,7 +687,7 @@
 
     <distributionManagement>
 
-        <repository>
+<!--        <repository>
             <id>codehaus.org</id>
             <name>Perf4j Repository</name>
             <url>dav:https://dav.codehaus.org/repository/perf4j/</url>
@@ -698,7 +698,13 @@
             <uniqueVersion>false</uniqueVersion>
             <name>Perf4j Snapshot Repository</name>
             <url>dav:https://dav.codehaus.org/snapshots.repository/perf4j/</url>
-        </snapshotRepository>
+        </snapshotRepository>-->
+
+        <repository>
+            <id>apex-nexus</id>
+            <name>Apex Internal Nexus Server</name>
+            <url>http://172.16.8.250:8081/nexus/content/repositories/thirdparty</url>
+        </repository>
 
         <site>
             <id>codehaus.org</id>

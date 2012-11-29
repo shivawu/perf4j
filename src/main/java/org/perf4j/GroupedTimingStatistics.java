@@ -37,7 +37,10 @@ public class GroupedTimingStatistics implements Serializable, Cloneable {
     /**
      * Default constructor allows you to set statistics later using the addStopWatch and setter methods.
      */
-    public GroupedTimingStatistics() {}
+    public GroupedTimingStatistics() {
+        startTime = Long.MAX_VALUE;
+        stopTime = -1;
+    }
 
     /**
      * Creates a GroupedTimingStatistics instance for a set of tags for a specified time span.
@@ -248,5 +251,16 @@ public class GroupedTimingStatistics implements Serializable, Cloneable {
         result = 31 * result + (int) (startTime ^ (startTime >>> 32));
         result = 31 * result + (int) (stopTime ^ (stopTime >>> 32));
         return result;
+    }
+
+    // --- Added by @WuCY ---
+    public void merge(GroupedTimingStatistics other) {
+        if (other.startTime < startTime) startTime = other.startTime;
+        if (other.stopTime > stopTime) stopTime = other.stopTime;
+        for (String tag: other.statisticsByTag.keySet()) {
+
+            if (this.statisticsByTag.containsKey(tag))
+                this.statisticsByTag.put(tag, statisticsByTag.get(tag))
+        }
     }
 }
