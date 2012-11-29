@@ -63,6 +63,11 @@ public class AsyncCoalescingStatisticsAppender extends AppenderBase<LoggingEvent
      */
     private final AppenderAttachableImpl<LoggingEvent> downstreamAppenders = new AppenderAttachableImpl<LoggingEvent>();
 
+    /**
+     *
+     */
+    private GroupedTimingStatistics totalStatistics = new GroupedTimingStatistics();
+
     // --- options ---
     /**
      * The <b>TimeSlice</b> option represents the length of time, in milliseconds, of the window in which appended
@@ -207,6 +212,12 @@ public class AsyncCoalescingStatisticsAppender extends AppenderBase<LoggingEvent
         //Start the underlying generic appender with a handler object that pumps statistics to the downstream appenders
         baseImplementation.start(new GenericAsyncCoalescingStatisticsAppender.GroupedTimingStatisticsHandler() {
             public void handle(GroupedTimingStatistics statistics) {
+                // Ignore empty statistics
+                // Added by Shiva Wu
+                if (statistics.getStatisticsByTag().size() == 0) 
+                    return;
+                totalStatistics = totalStatistics.merge(statistics);
+
                 LoggingEvent coalescedLoggingEvent =
                         new LoggingEvent(Logger.class.getName(),
                                          getLoggerContext().getLogger(StopWatch.DEFAULT_LOGGER_NAME),
@@ -292,8 +303,19 @@ public class AsyncCoalescingStatisticsAppender extends AppenderBase<LoggingEvent
     public void stop() {
         baseImplementation.stop();
 
+        //Output total statistics
+        LoggingEvent coalescedLoggingEvent =
+        new LoggingEvent(Logger.class.getName(),
+                         getLoggerContext().getLogger(StopWatch.DEFAULT_LOGGER_NAME),
+                         downstreamLogLevel,
+                         "{}",
+                         null,
+                         new Object[] { totalStatistics });
+
         //close the downstream appenders
         synchronized (downstreamAppenders) {
+            downstreamAppenders.appendLoopOnAppenders(coalescedLoggingEvent);
+
             //first FLUSH any flushable downstream appenders (fix for PERFFORJ-22). Note we CAN NOT just flush and
             //close in one loop because this breaks in the case of a "diamond" relationship between appenders, where,
             //say, this appender has 2 attached GraphingStatisticsAppenders that each write to a SINGLE attached

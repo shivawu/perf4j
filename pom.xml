@@ -208,7 +208,7 @@
                 </os>
             </activation>
             <properties>
-                <git.executable>git.cmd</git.executable>
+                <git.executable>git.exe</git.executable>
             </properties>
         </profile>
         <profile>

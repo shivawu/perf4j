@@ -25,7 +25,7 @@ import java.util.*;
  *
  * @author Alex Devine
  */
-public class GroupedTimingStatistics implements Serializable, Cloneable {
+public class GroupedTimingStatistics implements Serializable, Cloneable, Mergable<GroupedTimingStatistics> {
     private static final long serialVersionUID = 6506566405934476649L;
     private SortedMap<String, TimingStatistics> statisticsByTag = new TreeMap<String, TimingStatistics>();
     private long startTime;
@@ -68,6 +68,36 @@ public class GroupedTimingStatistics implements Serializable, Cloneable {
     }
 
     // --- Utility Methods ---
+    /**
+     * Merge another GroupedTimingStatistics object and returns a new one
+     * 
+     * @author Shiva Wu
+     *
+     * @param other The object to merge-in.
+     * @return the new GroupedTimingStatistics object
+     */
+    public GroupedTimingStatistics merge(GroupedTimingStatistics other) {
+        GroupedTimingStatistics result = new GroupedTimingStatistics();
+
+        result.startTime = this.startTime;
+        if (other.startTime < startTime) startTime = other.startTime;
+        result.stopTime = this.stopTime;
+        if (other.stopTime > stopTime) stopTime = other.stopTime;
+        result.createRollupStatistics = this.createRollupStatistics | other.createRollupStatistics;
+
+        for (String tag: other.statisticsByTag.keySet()) {
+            if (this.statisticsByTag.containsKey(tag))
+                result.statisticsByTag.put(tag, statisticsByTag.get(tag).merge(other.statisticsByTag.get(tag)));
+            else 
+                result.statisticsByTag.put(tag, other.statisticsByTag.get(tag));
+        }
+        for (String tag: this.statisticsByTag.keySet())
+            if (!other.statisticsByTag.containsKey(tag))
+                result.statisticsByTag.put(tag, other.statisticsByTag.get(tag));
+
+        return result;
+    }
+
     /**
      * This method updates the calculated statistics when a new logged StopWatch is added.
      *
@@ -251,16 +281,5 @@ public class GroupedTimingStatistics implements Serializable, Cloneable {
         result = 31 * result + (int) (startTime ^ (startTime >>> 32));
         result = 31 * result + (int) (stopTime ^ (stopTime >>> 32));
         return result;
-    }
-
-    // --- Added by @WuCY ---
-    public void merge(GroupedTimingStatistics other) {
-        if (other.startTime < startTime) startTime = other.startTime;
-        if (other.stopTime > stopTime) stopTime = other.stopTime;
-        for (String tag: other.statisticsByTag.keySet()) {
-
-            if (this.statisticsByTag.containsKey(tag))
-                this.statisticsByTag.put(tag, statisticsByTag.get(tag))
-        }
     }
 }

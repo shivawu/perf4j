@@ -23,7 +23,7 @@ import java.io.Serializable;
  *
  * @author Alex Devine
  */
-public class TimingStatistics implements Serializable, Cloneable {
+public class TimingStatistics implements Serializable, Cloneable, Mergable<TimingStatistics> {
     private static final long serialVersionUID = 2854670870560621993L;
     private double mean;
     private double runningQ; //for keeping running standard deviation
@@ -55,6 +55,34 @@ public class TimingStatistics implements Serializable, Cloneable {
     }
 
     // --- Utility Methods ---
+    /**
+     * This method merge another statistics object and returns a new instance.
+     * 
+     * @author Shiva Wu
+     * 
+     * @param other The object to merge-in.
+     * @return the new TimingStatistics instance
+     */
+    public TimingStatistics merge(TimingStatistics other) {
+        TimingStatistics result = new TimingStatistics();
+        result.count = this.count + other.count;
+        result.mean = (this.mean * this.count + other.mean * other.count) / (this.count + other.count);
+        result.runningQ = this.runningQ + other.runningQ;
+
+        result.max = this.max;
+        result.min = this.min;
+        if (this.count == 0) {
+            result.max = other.max;
+            result.min = other.min;
+        }
+        else if (other.count > 0) {
+            if (other.max > result.max) result.max = other.max;
+            if (other.min < result.min) result.min = other.min;
+        }
+
+        return result;
+    }
+
     /**
      * This method updates the calculated statistics with a new logged execution time.
      *
